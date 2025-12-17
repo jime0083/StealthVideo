@@ -27,7 +27,7 @@ LogBox.ignoreLogs([
   'Non-serializable values were found in the navigation state',
 ]);
 
-const BACK_TAP_STORAGE_KEY = 'stealthvideo:hasAcceptedBackTap';
+const BACK_TAP_STORAGE_KEY = '3tapvideo:hasAcceptedBackTap';
 
 type RecordingFile = {
   name: string;
@@ -219,8 +219,8 @@ const App = (): React.JSX.Element => {
     () => [
       '設定アプリ > アクセシビリティ > タッチ > 背面タップ を開きます。',
       '「トリプルタップ」に「ショートカット」を割り当てます。',
-      'ショートカットで「URLを開く」を追加し、URLに stealthvideo://start を入力します。',
-      '停止用に stealthvideo://stop を割り当てたショートカットを作ると便利です。',
+      'ショートカットで「URLを開く」を追加し、URLに 3tapvideo://start を入力します。',
+      '停止用に 3tapvideo://stop を割り当てたショートカットを作ると便利です。',
       '録画停止はこのアプリの「録画停止」ボタンで行います。',
     ],
     [],
@@ -253,7 +253,7 @@ const App = (): React.JSX.Element => {
           '5. 名前を「録画開始」にして完了',
         actionLabel: 'ショートカットを開く',
         onAction: openShortcuts,
-        copyableText: 'stealthvideo://start',
+        copyableText: '3tapvideo://start',
         image: require('./assets/instructions/how to2.png'),
       },
       {
@@ -289,8 +289,8 @@ const App = (): React.JSX.Element => {
         subtitle: '保存した動画を再生する',
         description:
           '1.「ファイル」アプリを開く\n' +
-          '2.「このiPhone内」→「StealthVideo」\n' +
-          '3. stealthvideo-日時.mov が録画ファイル\n' +
+          '2.「このiPhone内」→「3タップビデオ」\n' +
+          '3. 3tapvideo-日時.mov が録画ファイル\n' +
           '4. タップして再生できます\n\n' +
           '※ファイル名の日時は録画開始時刻です',
         actionLabel: 'ファイルを開く',
@@ -347,7 +347,7 @@ const App = (): React.JSX.Element => {
           </View>
 
           <View style={styles.settingSection}>
-            <Text style={styles.settingTitle}>ステルスレコーダーの使い方</Text>
+            <Text style={styles.settingTitle}>3タップビデオの使い方</Text>
             <View style={styles.settingList}>
               {settingSlides.map(slide => (
                 <View key={slide.id} style={styles.settingItem}>
@@ -392,7 +392,7 @@ const App = (): React.JSX.Element => {
               背面トリプルタップを有効にしますか？
             </Text>
             <Text style={styles.modalDescription}>
-              StealthVideoを使用するには、背面3回タップで録画を開始できるようショートカットを設定する必要があります。
+              3タップビデオを使用するには、背面3回タップで録画を開始できるようショートカットを設定する必要があります。
             </Text>
             <View style={styles.modalActions}>
               <Pressable

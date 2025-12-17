@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
-	<string>StealthVideo</string>
+	<string>3タップビデオ</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -51,10 +51,10 @@
 	<array>
 		<dict>
 			<key>CFBundleURLName</key>
-			<string>jp.stealthvideo.app</string>
+			<string>jp.3tapvideo.app</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>stealthvideo</string>
+				<string>3tapvideo</string>
 			</array>
 		</dict>
 	</array>

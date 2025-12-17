@@ -275,7 +275,7 @@ public class RecorderManager: NSObject, AVCaptureFileOutputRecordingDelegate {
     }
 
     let timestamp = fileDateFormatter.string(from: Date())
-    let filename = "stealthvideo-\(timestamp).mov"
+    let filename = "3tapvideo-\(timestamp).mov"
     return directory.appendingPathComponent(filename)
   }
 

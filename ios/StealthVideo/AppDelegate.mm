@@ -2,6 +2,7 @@
 
 #import <React/RCTBundleURLProvider.h>
 #import <React/RCTBridgeModule.h>
+#import <AVFoundation/AVFoundation.h>
 #import "StealthVideo-Swift.h"
 
 @implementation AppDelegate
@@ -34,7 +35,7 @@
             openURL:(NSURL *)url
             options:(NSDictionary<UIApplicationOpenURLOptionsKey,id> *)options
 {
-  if ([[url.scheme lowercaseString] isEqualToString:@"stealthvideo"]) {
+  if ([[url.scheme lowercaseString] isEqualToString:@"3tapvideo"]) {
     NSString *action = url.host ?: url.lastPathComponent;
     if (action.length == 0 && url.pathComponents.count > 1) {
       action = url.pathComponents[1];
