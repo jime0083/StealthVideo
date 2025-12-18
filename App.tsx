@@ -344,6 +344,27 @@ const App = (): React.JSX.Element => {
                 {isRecording ? '録画停止' : '録画は待機中'}
               </Text>
             </Pressable>
+
+            <View style={styles.legalGuideCard}>
+              <Text style={styles.legalGuideTitle}>
+                痴漢冤罪の疑いをかけられた場合
+              </Text>
+              <Text style={styles.legalGuideItem}>
+                ①駅員に市民を不当拘束する権利はない点を確認する
+              </Text>
+              <Text style={styles.legalGuideItem}>
+                ②身分証明書と住所を提示した際、逮捕できない点を確認する
+              </Text>
+              <Text style={styles.legalGuideItem}>
+                ③警察には警察手帳の提示と監視カメラの確認を求める
+              </Text>
+              <Text style={styles.legalGuideItem}>
+                ④弁護士を呼ぶまで待機して欲しいと伝える
+              </Text>
+              <Text style={styles.legalGuideItemLast}>
+                ⑤駅員や相手との会話を録音するなど証拠を残す
+              </Text>
+            </View>
           </View>
 
           <View style={styles.settingSection}>
@@ -610,6 +631,34 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     fontFamily: 'HiraginoMincho-W6',
+  },
+  legalGuideCard: {
+    marginTop: 16,
+    padding: 14,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+  },
+  legalGuideTitle: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '700',
+    marginBottom: 10,
+    fontFamily: 'HiraginoMincho-W6',
+  },
+  legalGuideItem: {
+    color: '#cfd3dd',
+    fontSize: 13,
+    lineHeight: 20,
+    marginBottom: 8,
+    fontFamily: 'HiraginoMincho-W3',
+  },
+  legalGuideItemLast: {
+    color: '#cfd3dd',
+    fontSize: 13,
+    lineHeight: 20,
+    fontFamily: 'HiraginoMincho-W3',
   },
   filesButton: {
     marginTop: 12,
