@@ -115,7 +115,28 @@ const App = (): React.JSX.Element => {
         loadRecordingFiles();
       }
     });
-    return () => sub.remove();
+
+    // URLスキーム起動（ショートカット）時に状態を強制同期
+    const handleURL = () => {
+      // ネイティブ側の録画開始は非同期＆タイミング依存なので数回リトライして取りこぼしを防ぐ
+      const delays = [0, 250, 750, 1500];
+      delays.forEach(ms => {
+        setTimeout(() => {
+          syncRecordingState();
+          loadRecordingFiles();
+        }, ms);
+      });
+    };
+    const urlSub = Linking.addEventListener('url', handleURL);
+    Linking.getInitialURL().then(url => {
+      if (url) {
+        handleURL();
+      }
+    });
+    return () => {
+      sub.remove();
+      urlSub.remove();
+    };
   }, [syncRecordingState, loadRecordingFiles]);
 
   const ensurePermission = useCallback(async () => {
@@ -195,6 +216,31 @@ const App = (): React.JSX.Element => {
     );
   }, [ensurePermission]);
 
+  const startRecording = useCallback(async () => {
+    if (!recorderModule) {
+      Alert.alert('iOS専用機能', '録画機能はiOSデバイスでのみ利用できます。');
+      return;
+    }
+    try {
+      const granted = await recorderModule.requestPermission();
+      if (!granted) {
+        Alert.alert(
+          'カメラ/マイク権限が必要です',
+          '設定アプリでカメラ/マイク権限を許可してからもう一度お試しください。',
+        );
+        return;
+      }
+      setPermissionChecked(true);
+      await recorderModule.startRecording();
+      // すぐに反映されない場合があるため、少し待ってから状態再同期
+      setTimeout(() => {
+        syncRecordingState();
+      }, 300);
+    } catch (error) {
+      Alert.alert('録画開始に失敗しました', String(error));
+    }
+  }, [syncRecordingState]);
+
   const stopRecording = useCallback(async () => {
     if (!recorderModule) {
       Alert.alert('iOS専用機能', '録画機能はiOSデバイスでのみ利用できます。');
@@ -219,8 +265,8 @@ const App = (): React.JSX.Element => {
     () => [
       '設定アプリ > アクセシビリティ > タッチ > 背面タップ を開きます。',
       '「トリプルタップ」に「ショートカット」を割り当てます。',
-      'ショートカットで「URLを開く」を追加し、URLに 3tapvideo://start を入力します。',
-      '停止用に 3tapvideo://stop を割り当てたショートカットを作ると便利です。',
+      'ショートカットで「URLを開く」を追加し、URLに tapvideo3://start を入力します。',
+      '停止用に tapvideo3://stop を割り当てたショートカットを作ると便利です。',
       '録画停止はこのアプリの「録画停止」ボタンで行います。',
     ],
     [],
@@ -253,7 +299,7 @@ const App = (): React.JSX.Element => {
           '5. 名前を「録画開始」にして完了',
         actionLabel: 'ショートカットを開く',
         onAction: openShortcuts,
-        copyableText: '3tapvideo://start',
+        copyableText: 'tapvideo3://start',
         image: require('./assets/instructions/how to2.png'),
       },
       {
@@ -289,7 +335,7 @@ const App = (): React.JSX.Element => {
         subtitle: '保存した動画を再生する',
         description:
           '1.「ファイル」アプリを開く\n' +
-          '2.「このiPhone内」→「3タップビデオ」\n' +
+          '2.「このiPhone内」→「3 Tap Video」\n' +
           '3. 3tapvideo-日時.mov が録画ファイル\n' +
           '4. タップして再生できます\n\n' +
           '※ファイル名の日時は録画開始時刻です',
@@ -333,16 +379,23 @@ const App = (): React.JSX.Element => {
               ]}>
               {isRecording ? '録画中' : '待機中'}
             </Text>
+            {isRecording ? (
+              <Pressable style={styles.stopButton} onPress={stopRecording}>
+                <Text style={styles.stopButtonText}>録画停止</Text>
+              </Pressable>
+            ) : (
+              <Pressable style={styles.startButton} onPress={startRecording}>
+                <Text style={styles.startButtonText}>録画開始</Text>
+              </Pressable>
+            )}
+
             <Pressable
-              style={[
-                styles.stopButton,
-                !isRecording && styles.stopButtonDisabled,
-              ]}
-              onPress={stopRecording}
-              disabled={!isRecording}>
-              <Text style={styles.stopButtonText}>
-                {isRecording ? '録画停止' : '録画は待機中'}
-              </Text>
+              style={styles.filesButton}
+              onPress={async () => {
+                await loadRecordingFiles();
+                setShowFilesModal(true);
+              }}>
+              <Text style={styles.filesButtonText}>録画ファイル一覧</Text>
             </Pressable>
 
             <View style={styles.legalGuideCard}>
@@ -368,7 +421,7 @@ const App = (): React.JSX.Element => {
           </View>
 
           <View style={styles.settingSection}>
-            <Text style={styles.settingTitle}>3タップビデオの使い方</Text>
+            <Text style={styles.settingTitle}>3 Tap Video の使い方</Text>
             <View style={styles.settingList}>
               {settingSlides.map(slide => (
                 <View key={slide.id} style={styles.settingItem}>
@@ -413,7 +466,7 @@ const App = (): React.JSX.Element => {
               背面トリプルタップを有効にしますか？
             </Text>
             <Text style={styles.modalDescription}>
-              3タップビデオを使用するには、背面3回タップで録画を開始できるようショートカットを設定する必要があります。
+              3 Tap Video を使用するには、背面3回タップで録画を開始できるようショートカットを設定する必要があります。
             </Text>
             <View style={styles.modalActions}>
               <Pressable
@@ -623,13 +676,22 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     alignItems: 'center',
   },
-  stopButtonDisabled: {
-    opacity: 0.5,
-  },
   stopButtonText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+    fontFamily: 'HiraginoMincho-W6',
+  },
+  startButton: {
+    backgroundColor: '#6fb1ff',
+    borderRadius: 999,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  startButtonText: {
+    color: '#0f1424',
+    fontSize: 16,
+    fontWeight: '700',
     fontFamily: 'HiraginoMincho-W6',
   },
   legalGuideCard: {

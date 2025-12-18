@@ -2,6 +2,7 @@
 
 #import <React/RCTBundleURLProvider.h>
 #import <React/RCTBridgeModule.h>
+#import <React/RCTLinkingManager.h>
 #import <AVFoundation/AVFoundation.h>
 #import "StealthVideo-Swift.h"
 
@@ -35,12 +36,14 @@
             openURL:(NSURL *)url
             options:(NSDictionary<UIApplicationOpenURLOptionsKey,id> *)options
 {
-  if ([[url.scheme lowercaseString] isEqualToString:@"3tapvideo"]) {
+  if ([[url.scheme lowercaseString] isEqualToString:@"tapvideo3"]) {
     NSString *action = url.host ?: url.lastPathComponent;
     if (action.length == 0 && url.pathComponents.count > 1) {
       action = url.pathComponents[1];
     }
     [[RecorderManager sharedInstance] handleShortcutWithAction:action];
+    // RN側にもURLイベントを転送してUI状態更新のトリガーにする
+    [RCTLinkingManager application:app openURL:url options:options];
     return YES;
   }
   return [super application:app openURL:url options:options];

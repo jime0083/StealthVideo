@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
-	<string>3タップビデオ</string>
+	<string>3 Tap Video</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -54,7 +54,7 @@
 			<string>jp.3tapvideo.app</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>3tapvideo</string>
+				<string>tapvideo3</string>
 			</array>
 		</dict>
 	</array>

@@ -12,6 +12,9 @@ public class RecorderManager: NSObject, AVCaptureFileOutputRecordingDelegate {
     return formatter
   }()
 
+  // AVCaptureSession.startRunning() はメインスレッドだと警告が出るため、専用キューで扱う
+  private static let sessionQueue = DispatchQueue(label: "jp.tapvideo3.recorder.session", qos: .userInitiated)
+
   // 全インスタンスで共有する（URLスキーム起動とRN呼び出しで状態を共有するため）
   private static var captureSession: AVCaptureSession?
   private static var movieOutput: AVCaptureMovieFileOutput?
@@ -59,12 +62,16 @@ public class RecorderManager: NSObject, AVCaptureFileOutputRecordingDelegate {
     _ resolve: @escaping RCTPromiseResolveBlock,
     rejecter reject: @escaping RCTPromiseRejectBlock
   ) {
-    DispatchQueue.main.async {
+    RecorderManager.sessionQueue.async {
       do {
         let fileName = try RecorderManager.beginRecording(delegate: RecorderManager.shared)
-        resolve(fileName)
+        DispatchQueue.main.async {
+          resolve(fileName)
+        }
       } catch {
-        reject("recording_error", error.localizedDescription, error)
+        DispatchQueue.main.async {
+          reject("recording_error", error.localizedDescription, error)
+        }
       }
     }
   }
@@ -73,9 +80,11 @@ public class RecorderManager: NSObject, AVCaptureFileOutputRecordingDelegate {
     _ resolve: @escaping RCTPromiseResolveBlock,
     rejecter reject: @escaping RCTPromiseRejectBlock
   ) {
-    DispatchQueue.main.async {
+    RecorderManager.sessionQueue.async {
       let result = RecorderManager.stopRecordingInternal()
-      resolve(result)
+      DispatchQueue.main.async {
+        resolve(result)
+      }
     }
   }
 
@@ -157,7 +166,7 @@ public class RecorderManager: NSObject, AVCaptureFileOutputRecordingDelegate {
         group.leave()
       }
 
-      group.notify(queue: .main) {
+      group.notify(queue: RecorderManager.sessionQueue) {
         NSLog("[StealthVideo] Permission video=%@ audio=%@", videoGranted ? "YES" : "NO", audioGranted ? "YES" : "NO")
         guard videoGranted && audioGranted else {
           return
@@ -166,13 +175,16 @@ public class RecorderManager: NSObject, AVCaptureFileOutputRecordingDelegate {
           let fileName = try RecorderManager.beginRecording(delegate: RecorderManager.shared)
           NSLog("[StealthVideo] Recording started: %@", fileName)
         } catch {
-          NSLog("[StealthVideo] Recording failed: %@", error.localizedDescription)
+          let nsError = error as NSError
+          NSLog("[StealthVideo] Recording failed: %@ (domain=%@ code=%ld)", nsError.localizedDescription, nsError.domain, nsError.code)
         }
       }
 
     case "stop":
-      let result = RecorderManager.stopRecordingInternal()
-      NSLog("[StealthVideo] Recording stopped: %@", result)
+      RecorderManager.sessionQueue.async {
+        let result = RecorderManager.stopRecordingInternal()
+        NSLog("[StealthVideo] Recording stopped: %@", result)
+      }
 
     default:
       NSLog("[StealthVideo] Unknown action: %@", action)
@@ -192,11 +204,25 @@ public class RecorderManager: NSObject, AVCaptureFileOutputRecordingDelegate {
     return fileName
   }
 
+  private static func configureAudioSessionIfNeeded() throws {
+    // URLスキーム起動直後は音声セッションが未設定なことがあり、録画が即停止するケースがあるため明示的に設定する
+    let audioSession = AVAudioSession.sharedInstance()
+    if audioSession.category != .playAndRecord {
+      try audioSession.setCategory(.playAndRecord, mode: .videoRecording, options: [.defaultToSpeaker, .allowBluetooth])
+    }
+    if !audioSession.isOtherAudioPlaying {
+      try audioSession.setActive(true, options: [])
+    } else {
+      try audioSession.setActive(true, options: [])
+    }
+  }
+
   private static func beginRecording(delegate: AVCaptureFileOutputRecordingDelegate) throws -> String {
     if let output = movieOutput, output.isRecording, let url = currentRecordingURL {
       return url.lastPathComponent
     }
 
+    try configureAudioSessionIfNeeded()
     try configureSessionIfNeeded()
 
     guard let session = captureSession, let output = movieOutput else {
@@ -205,6 +231,15 @@ public class RecorderManager: NSObject, AVCaptureFileOutputRecordingDelegate {
 
     if !session.isRunning {
       session.startRunning()
+    }
+
+    // session.startRunning() 直後は接続が有効化されておらず MovieFileOutput が即停止することがあるため少し待つ
+    let deadline = Date().addingTimeInterval(1.0)
+    while Date() < deadline {
+      if let conn = output.connection(with: .video), conn.isActive {
+        break
+      }
+      Thread.sleep(forTimeInterval: 0.05)
     }
 
     let url = try makeMovieURL()
@@ -283,12 +318,36 @@ public class RecorderManager: NSObject, AVCaptureFileOutputRecordingDelegate {
 
   public func fileOutput(
     _ output: AVCaptureFileOutput,
+    didStartRecordingTo fileURL: URL,
+    from connections: [AVCaptureConnection]
+  ) {
+    NSLog("[StealthVideo] didStartRecording: %@", fileURL.lastPathComponent)
+  }
+
+  public func fileOutput(
+    _ output: AVCaptureFileOutput,
     didFinishRecordingTo outputFileURL: URL,
     from connections: [AVCaptureConnection],
     error: Error?
   ) {
+    defer {
+      // 録画が終了したら現在のURLをクリア（次回録画の整合性のため）
+      RecorderManager.currentRecordingURL = nil
+    }
+
     if let error {
-      NSLog("[StealthVideo] didFinishRecording error: %@", error.localizedDescription)
+      let nsError = error as NSError
+      let exists = FileManager.default.fileExists(atPath: outputFileURL.path)
+      let size = (try? FileManager.default.attributesOfItem(atPath: outputFileURL.path)[.size] as? NSNumber)?.intValue ?? -1
+      NSLog(
+        "[StealthVideo] didFinishRecording error: %@ (domain=%@ code=%ld) exists=%@ size=%d url=%@",
+        nsError.localizedDescription,
+        nsError.domain,
+        nsError.code,
+        exists ? "YES" : "NO",
+        size,
+        outputFileURL.path
+      )
     } else {
       NSLog("[StealthVideo] didFinishRecording: %@", outputFileURL.lastPathComponent)
     }
