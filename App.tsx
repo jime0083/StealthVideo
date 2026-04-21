@@ -29,19 +29,11 @@ LogBox.ignoreLogs([
 
 const BACK_TAP_STORAGE_KEY = '3tapvideo:hasAcceptedBackTap';
 
-type RecordingFile = {
-  name: string;
-  path: string;
-  size: number;
-  date: string;
-};
-
 type RecorderModule = {
   requestPermission: () => Promise<boolean>;
   startRecording: () => Promise<string>;
   stopRecording: () => Promise<string>;
   isRecording: () => Promise<boolean>;
-  getRecordingFiles: () => Promise<RecordingFile[]>;
 };
 
 type SettingSlide = {
@@ -64,22 +56,6 @@ const App = (): React.JSX.Element => {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [guideExpanded, setGuideExpanded] = useState(false);
   const [permissionChecked, setPermissionChecked] = useState(false);
-  const [recordingFiles, setRecordingFiles] = useState<RecordingFile[]>([]);
-  const [showFilesModal, setShowFilesModal] = useState(false);
-
-  const loadRecordingFiles = useCallback(async () => {
-    if (!recorderModule) {
-      return;
-    }
-    try {
-      const files = await recorderModule.getRecordingFiles();
-      setRecordingFiles(files || []);
-    } catch {
-      // エラーは静かに処理（ファイルがない場合など）
-      setRecordingFiles([]);
-    }
-  }, []);
-
   const syncRecordingState = useCallback(() => {
     if (!recorderModule) {
       setIsRecording(false);
@@ -99,7 +75,6 @@ const App = (): React.JSX.Element => {
         const value = await AsyncStorage.getItem(BACK_TAP_STORAGE_KEY);
         setShowOnboarding(value !== 'accepted');
         syncRecordingState();
-        await loadRecordingFiles();
       } finally {
         // 最低1.5秒はローディングを表示（アニメーションを見せるため）
         setTimeout(() => {
@@ -112,7 +87,6 @@ const App = (): React.JSX.Element => {
     const sub = AppState.addEventListener('change', state => {
       if (state === 'active') {
         syncRecordingState();
-        loadRecordingFiles();
       }
     });
 
@@ -123,7 +97,6 @@ const App = (): React.JSX.Element => {
       delays.forEach(ms => {
         setTimeout(() => {
           syncRecordingState();
-          loadRecordingFiles();
         }, ms);
       });
     };
@@ -137,7 +110,7 @@ const App = (): React.JSX.Element => {
       sub.remove();
       urlSub.remove();
     };
-  }, [syncRecordingState, loadRecordingFiles]);
+  }, [syncRecordingState]);
 
   const ensurePermission = useCallback(async () => {
     if (!recorderModule || permissionChecked) {
@@ -249,28 +222,16 @@ const App = (): React.JSX.Element => {
     try {
       const fileName = await recorderModule.stopRecording();
       setIsRecording(false);
-      await loadRecordingFiles();
       if (fileName !== 'idle') {
         Alert.alert(
           '録画を保存しました',
-          `ファイル名: ${fileName}\n\n「録画ファイル一覧」ボタンで確認できます。`,
+          `ファイル名: ${fileName}\n\n「ファイル」アプリの「このiPhone内」→「3 Tap Video」で確認できます。`,
         );
       }
     } catch (error) {
       Alert.alert('録画停止に失敗しました', String(error));
     }
-  }, [loadRecordingFiles]);
-
-  const instructions = useMemo(
-    () => [
-      '設定アプリ > アクセシビリティ > タッチ > 背面タップ を開きます。',
-      '「トリプルタップ」に「ショートカット」を割り当てます。',
-      'ショートカットで「URLを開く」を追加し、URLに tapvideo3://start を入力します。',
-      '停止用に tapvideo3://stop を割り当てたショートカットを作ると便利です。',
-      '録画停止はこのアプリの「録画停止」ボタンで行います。',
-    ],
-    [],
-  );
+  }, []);
 
   const settingSlides = useMemo<SettingSlide[]>(
     () => [
@@ -389,15 +350,6 @@ const App = (): React.JSX.Element => {
               </Pressable>
             )}
 
-            <Pressable
-              style={styles.filesButton}
-              onPress={async () => {
-                await loadRecordingFiles();
-                setShowFilesModal(true);
-              }}>
-              <Text style={styles.filesButtonText}>録画ファイル一覧</Text>
-            </Pressable>
-
             <View style={styles.legalGuideCard}>
               <Text style={styles.legalGuideTitle}>
                 痴漢冤罪の疑いをかけられた場合
@@ -488,38 +440,6 @@ const App = (): React.JSX.Element => {
         </View>
       </Modal>
 
-      <Modal visible={showFilesModal} animationType="slide" transparent>
-        <View style={styles.modalBackdrop}>
-          <View style={styles.filesModalContent}>
-            <Text style={styles.modalTitle}>録画ファイル一覧</Text>
-            {recordingFiles.length === 0 ? (
-              <Text style={styles.filesEmptyText}>
-                録画ファイルがありません。{'\n'}
-                背面タップで録画を開始してみてください。
-              </Text>
-            ) : (
-              <ScrollView style={styles.filesList}>
-                {recordingFiles.map((file, index) => (
-                  <View key={file.name} style={styles.fileItem}>
-                    <Text style={styles.fileName}>{file.name}</Text>
-                    <Text style={styles.fileInfo}>
-                      サイズ: {Math.round(file.size / 1024)} KB
-                    </Text>
-                    <Text style={styles.fileInfo}>
-                      日時: {new Date(file.date).toLocaleString('ja-JP')}
-                    </Text>
-                  </View>
-                ))}
-              </ScrollView>
-            )}
-            <Pressable
-              style={[styles.modalButton, styles.modalButtonPrimary]}
-              onPress={() => setShowFilesModal(false)}>
-              <Text style={styles.modalButtonPrimaryText}>閉じる</Text>
-            </Pressable>
-          </View>
-        </View>
-      </Modal>
     </ImageBackground>
   );
 };
@@ -722,20 +642,6 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     fontFamily: 'HiraginoMincho-W3',
   },
-  filesButton: {
-    marginTop: 12,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: '#6fb1ff',
-    paddingVertical: 10,
-    alignItems: 'center',
-  },
-  filesButtonText: {
-    color: '#6fb1ff',
-    fontSize: 14,
-    fontWeight: '600',
-    fontFamily: 'HiraginoMincho-W6',
-  },
   guideToggle: {
     paddingVertical: 12,
     marginBottom: 8,
@@ -873,43 +779,6 @@ const styles = StyleSheet.create({
     color: '#6fb1ff',
     fontWeight: '700',
     fontFamily: 'HiraginoMincho-W6',
-  },
-  filesModalContent: {
-    backgroundColor: '#0f1424',
-    borderRadius: 20,
-    padding: 24,
-    width: '100%',
-    maxHeight: '80%',
-  },
-  filesEmptyText: {
-    color: '#9fb3d4',
-    fontSize: 15,
-    lineHeight: 22,
-    textAlign: 'center',
-    marginVertical: 24,
-    fontFamily: 'HiraginoMincho-W3',
-  },
-  filesList: {
-    marginVertical: 16,
-    maxHeight: 300,
-  },
-  fileItem: {
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 8,
-  },
-  fileName: {
-    color: '#ffffff',
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 4,
-    fontFamily: 'HiraginoMincho-W6',
-  },
-  fileInfo: {
-    color: '#9fb3d4',
-    fontSize: 12,
-    fontFamily: 'HiraginoMincho-W3',
   },
 });
 
