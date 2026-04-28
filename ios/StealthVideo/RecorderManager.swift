@@ -7,7 +7,7 @@ import React
 public class RecorderManager: NSObject, AVCaptureFileOutputRecordingDelegate {
   private static let fileDateFormatter: DateFormatter = {
     let formatter = DateFormatter()
-    formatter.dateFormat = "yyyyMMdd_HHmmss"
+    formatter.dateFormat = "yyyy-M-d_HH-mm-ss"
     formatter.locale = Locale(identifier: "ja_JP")
     return formatter
   }()
@@ -310,7 +310,7 @@ public class RecorderManager: NSObject, AVCaptureFileOutputRecordingDelegate {
     }
 
     let timestamp = fileDateFormatter.string(from: Date())
-    let filename = "3tapvideo-\(timestamp).mov"
+    let filename = "\(timestamp).mov"
     return directory.appendingPathComponent(filename)
   }
 
